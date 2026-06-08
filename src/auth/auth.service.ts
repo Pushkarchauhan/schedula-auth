@@ -14,8 +14,11 @@ export class AuthService {
 
   async signup(dto: SignupDto) {
     const user = await this.usersService.create(dto);
-    const token = this.generateToken(user);
-    return { token, user: this.sanitize(user) };
+    // No token on signup — user must login to get token
+    return {
+      message: 'Account created successfully. Please login to get your token.',
+      user: this.sanitize(user),
+    };
   }
 
   async login(dto: LoginDto) {
