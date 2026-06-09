@@ -1,4 +1,4 @@
-# 🏥 Schedula – Role-Based Auth API
+# 🏥 Schedula – Backend API
 
 **NestJS · TypeScript · PostgreSQL · JWT**
 
@@ -7,243 +7,163 @@
 ## 📁 Project Structure
 
 ```
-schedula-nest/
-├── src/
-│   ├── auth/
-│   │   ├── dto/
-│   │   │   └── login.dto.ts
-│   │   ├── guards/
-│   │   │   ├── jwt-auth.guard.ts     ← verifies JWT token
-│   │   │   └── roles.guard.ts        ← checks user role
-│   │   ├── strategies/
-│   │   │   └── jwt.strategy.ts       ← Passport JWT strategy
-│   │   ├── auth.controller.ts        ← /api/auth/* routes
-│   │   ├── auth.module.ts
-│   │   ├── auth.service.ts
-│   │   └── roles.decorator.ts        ← @Roles() decorator
-│   ├── users/
-│   │   ├── dto/
-│   │   │   └── signup.dto.ts
-│   │   ├── doctor.controller.ts      ← /doctor/* routes (DOCTOR only)
-│   │   ├── patient.controller.ts     ← /patient/* routes (PATIENT only)
-│   │   ├── user.entity.ts            ← TypeORM entity + Role enum
-│   │   ├── users.module.ts
-│   │   └── users.service.ts
-│   ├── app.module.ts
-│   └── main.ts
-├── .env.example
-├── .gitignore
-├── nest-cli.json
-├── package.json
-└── tsconfig.json
+src/
+├── auth/                          # Day 2 - JWT Auth
+│   ├── dto/login.dto.ts
+│   ├── guards/jwt-auth.guard.ts
+│   ├── guards/roles.guard.ts
+│   ├── strategies/jwt.strategy.ts
+│   ├── roles.decorator.ts
+│   ├── auth.controller.ts
+│   ├── auth.module.ts
+│   └── auth.service.ts
+├── users/                         # Day 2 - User entity
+│   ├── dto/signup.dto.ts
+│   ├── user.entity.ts
+│   ├── users.module.ts
+│   └── users.service.ts
+├── doctor/                        # Day 3 - Doctor Onboarding
+│   ├── dto/create-doctor-profile.dto.ts
+│   ├── dto/update-doctor-profile.dto.ts
+│   ├── doctor-profile.entity.ts
+│   ├── doctor.controller.ts
+│   ├── doctor.module.ts
+│   └── doctor.service.ts
+├── patient/                       # Day 3 - Patient Onboarding
+│   ├── dto/create-patient-profile.dto.ts
+│   ├── dto/update-patient-profile.dto.ts
+│   ├── patient-profile.entity.ts
+│   ├── patient.controller.ts
+│   ├── patient.module.ts
+│   └── patient.service.ts
+├── database/                      # Day 3 - Migrations
+│   ├── data-source.ts
+│   └── migrations/
+│       └── 1700000000000-CreateProfileTables.ts
+├── app.module.ts
+└── main.ts
 ```
 
 ---
 
-## ⚙️ Setup & Run
-
-### 1. Prerequisites
-
-- Node.js v18+
-- PostgreSQL running locally (or use a cloud DB)
-
-### 2. Install dependencies
+## ⚙️ Setup
 
 ```bash
 npm install
+cp .env.example .env   # fill in your DB password and JWT secret
 ```
 
-### 3. Configure environment
+---
 
-```bash
-cp .env.example .env
-```
-
-Edit `.env`:
-
-```env
-PORT=3000
-
-DB_HOST=localhost
-DB_PORT=5432
-DB_USERNAME=postgres
-DB_PASSWORD=yourpassword
-DB_NAME=schedula
-
-JWT_SECRET=any_long_random_string_here
-JWT_EXPIRES_IN=7d
-```
-
-### 4. Create the database
+## 🗄️ Database Setup
 
 ```sql
 -- In psql or pgAdmin:
 CREATE DATABASE schedula;
 ```
 
-> TypeORM will auto-create the `users` table on first run (`synchronize: true`).
-
-### 5. Run the server
-
+Run migrations:
 ```bash
-# Development (hot reload)
-npm run start:dev
-
-# Production
-npm run build && npm run start:prod
+npm run migration:run
 ```
 
-Server: `http://localhost:3000`
+Start server:
+```bash
+npm run start:dev
+```
 
 ---
 
 ## 📡 API Reference
 
-### Auth — Public Routes
+### Auth (Public)
 
-#### `POST /api/auth/signup`
+| Method | Route | Body |
+|--------|-------|------|
+| POST | `/api/auth/signup` | name, email, password, role |
+| POST | `/api/auth/login` | email, password |
+| GET  | `/api/auth/me` | — (Bearer token) |
 
-**Doctor:**
+---
+
+### Doctor Onboarding 🩺 — DOCTOR only
+
+| Method | Route | Description |
+|--------|-------|-------------|
+| POST  | `/doctor/profile` | Create profile (onboarding) |
+| GET   | `/doctor/profile` | Get own profile |
+| PATCH | `/doctor/profile` | Update profile |
+
+**POST /doctor/profile body:**
 ```json
 {
-  "name": "Dr. Anjali Sharma",
-  "email": "anjali@hospital.com",
-  "password": "password123",
-  "role": "DOCTOR",
+  "fullName": "Dr. Anjali Sharma",
   "specialization": "Cardiology",
-  "licenseNumber": "MCI-2024-001"
-}
-```
-
-**Patient:**
-```json
-{
-  "name": "Ravi Kumar",
-  "email": "ravi@gmail.com",
-  "password": "password123",
-  "role": "PATIENT",
-  "dateOfBirth": "1990-05-15",
-  "bloodGroup": "O+"
-}
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "message": "Account created successfully.",
-  "token": "eyJhbGciOiJIUzI1NiIs...",
-  "user": { "id": "...", "name": "...", "role": "DOCTOR" }
+  "experience": 10,
+  "qualification": "MBBS, MD",
+  "consultationFee": 500,
+  "availabilityHours": "Mon-Fri 9AM-5PM",
+  "profileDetails": "Senior cardiologist with 10 years experience."
 }
 ```
 
 ---
 
-#### `POST /api/auth/login`
-
-```json
-{
-  "email": "anjali@hospital.com",
-  "password": "password123"
-}
-```
-
----
-
-#### `GET /api/auth/me`
-
-> 🔒 Bearer token required
-
----
-
-### Doctor Routes — 🔒 DOCTOR only
+### Patient Onboarding 🧑‍⚕️ — PATIENT only
 
 | Method | Route | Description |
 |--------|-------|-------------|
-| GET | `/doctor/profile` | Doctor's own profile |
-| GET | `/doctor/patients` | List all patients |
+| POST  | `/patient/profile` | Create profile (onboarding) |
+| GET   | `/patient/profile` | Get own profile |
+| PATCH | `/patient/profile` | Update profile |
 
----
-
-### Patient Routes — 🔒 PATIENT only
-
-| Method | Route | Description |
-|--------|-------|-------------|
-| GET | `/patient/profile` | Patient's own profile |
-| GET | `/patient/doctors` | List all doctors |
-
----
-
-## 🧪 Testing Scenarios (Postman / Hoppscotch)
-
-Add header for protected routes:
-```
-Authorization: Bearer <your_token_here>
-```
-
-| Test | Token | Route | Expected |
-|------|-------|-------|----------|
-| Doctor accesses own profile | Doctor token | GET /doctor/profile | ✅ 200 |
-| Doctor tries patient route | Doctor token | GET /patient/profile | ❌ 403 |
-| Patient accesses own profile | Patient token | GET /patient/profile | ✅ 200 |
-| Patient tries doctor route | Patient token | GET /doctor/profile | ❌ 403 |
-| No token | None | GET /doctor/profile | ❌ 401 |
-| Invalid token | Garbage | GET /patient/profile | ❌ 401 |
-
----
-
-## 🔐 Auth Flow
-
-```
-Client                             Server
-  │                                  │
-  ├──POST /api/auth/login──────────► │
-  │                                  │  1. Find user by email
-  │                                  │  2. bcrypt.compare(password)
-  │                                  │  3. jwt.sign({ sub, email, role })
-  │ ◄──{ token: "eyJ..." }──────────┤
-  │                                  │
-  ├──GET /doctor/profile────────────► │
-  │  Authorization: Bearer eyJ...    │  1. JwtAuthGuard → verify token
-  │                                  │  2. JwtStrategy → attach req.user
-  │                                  │  3. RolesGuard → check role = DOCTOR
-  │ ◄──200 OK / 403 Forbidden───────┤
+**POST /patient/profile body:**
+```json
+{
+  "fullName": "Ravi Kumar",
+  "age": 30,
+  "gender": "MALE",
+  "phone": "9876543210",
+  "address": "123 Main St, Delhi",
+  "bloodGroup": "O+",
+  "allergies": "Penicillin",
+  "medicalHistory": "Diabetes Type 2",
+  "emergencyContact": "9876500000"
+}
 ```
 
 ---
 
-## 🌿 Git Workflow
+## 🧪 Postman Testing
+
+Add header for all protected routes:
+```
+Authorization: Bearer <your_token>
+```
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | POST /api/auth/signup (DOCTOR) | 201 ✅ |
+| 2 | POST /api/auth/signup (PATIENT) | 201 ✅ |
+| 3 | POST /api/auth/login | 200 ✅ |
+| 4 | POST /doctor/profile (Doctor token) | 201 ✅ |
+| 5 | GET /doctor/profile (Doctor token) | 200 ✅ |
+| 6 | PATCH /doctor/profile (Doctor token) | 200 ✅ |
+| 7 | POST /doctor/profile again (duplicate) | 409 ❌ |
+| 8 | POST /patient/profile (Patient token) | 201 ✅ |
+| 9 | GET /patient/profile (Patient token) | 200 ✅ |
+| 10 | PATCH /patient/profile (Patient token) | 200 ✅ |
+| 11 | GET /doctor/profile (Patient token) | 403 ❌ |
+| 12 | GET /patient/profile (Doctor token) | 403 ❌ |
+| 13 | GET /doctor/profile (no token) | 401 ❌ |
+
+---
+
+## 🌿 Git Branch
 
 ```bash
-# Create feature branch
-git checkout -b feature/role-based-auth
-
-# Commit in small steps
-git add src/users/user.entity.ts
-git commit -m "feat: add User entity with DOCTOR/PATIENT role enum"
-
-git add src/auth/guards/
-git commit -m "feat: add JwtAuthGuard and RolesGuard"
-
-git add src/users/doctor.controller.ts src/users/patient.controller.ts
-git commit -m "feat: add role-restricted doctor and patient controllers"
-
-# Push and open PR
-git push origin feature/role-based-auth
+git checkout -b feature/doctor-patient-onboarding
+git add .
+git commit -m "feat: add doctor and patient onboarding with profile APIs"
+git push origin feature/doctor-patient-onboarding
 ```
-
----
-
-## ✅ Deliverables Checklist
-
-- [x] Signup API — `POST /api/auth/signup`
-- [x] Login API — `POST /api/auth/login`
-- [x] JWT Authentication
-- [x] Role-Based Authorization (`DOCTOR` / `PATIENT`)
-- [x] `GET /doctor/profile` — DOCTOR only
-- [x] `GET /patient/profile` — PATIENT only
-- [x] `GET /doctor/patients` — DOCTOR only
-- [x] `GET /patient/doctors` — PATIENT only
-- [ ] API tested (Postman/Hoppscotch)
-- [ ] Loom video recorded
-- [ ] PR raised
