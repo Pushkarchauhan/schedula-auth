@@ -8,6 +8,7 @@ import { PatientModule } from './patient/patient.module';
 import { User } from './users/user.entity';
 import { DoctorProfile } from './doctor/doctor-profile.entity';
 import { PatientProfile } from './patient/patient-profile.entity';
+import { AppController } from './app.controller'; // 👈 Add this
 
 @Module({
   imports: [
@@ -19,16 +20,13 @@ import { PatientProfile } from './patient/patient-profile.entity';
       useFactory: (config: ConfigService) => {
         const databaseUrl = config.get<string>('DATABASE_URL');
 
-        // Use DATABASE_URL for production (Neon/Railway)
-        // Use individual vars for local development
         if (databaseUrl) {
           return {
             type: 'postgres',
             url: databaseUrl,
             entities: [User, DoctorProfile, PatientProfile],
-            synchronize: false,
-            migrations: ['dist/database/migrations/*.js'],
-            migrationsRun: true,
+            synchronize: true,
+            migrationsRun: false,
             ssl: { rejectUnauthorized: false },
             logging: false,
           };
@@ -42,9 +40,8 @@ import { PatientProfile } from './patient/patient-profile.entity';
           password: config.get<string>('DB_PASSWORD', 'postgres'),
           database: config.get<string>('DB_NAME', 'schedula'),
           entities: [User, DoctorProfile, PatientProfile],
-          synchronize: false,
-          migrations: ['dist/database/migrations/*.js'],
-          migrationsRun: true,
+          synchronize: true,
+          migrationsRun: false,
           logging: false,
         };
       },
@@ -55,5 +52,6 @@ import { PatientProfile } from './patient/patient-profile.entity';
     DoctorModule,
     PatientModule,
   ],
+  controllers: [AppController],
 })
 export class AppModule {}
