@@ -8,18 +8,17 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  // POST /api/auth/signup
+  // POST /api/auth/signup — creates account, NO token returned
   @Post('signup')
   async signup(@Body() dto: SignupDto) {
     const result = await this.authService.signup(dto);
     return {
       success: true,
-      message: 'Account created successfully.',
       ...result,
     };
   }
 
-  // POST /api/auth/login
+  // POST /api/auth/login — returns JWT token
   @Post('login')
   @HttpCode(200)
   async login(@Body() dto: LoginDto) {
