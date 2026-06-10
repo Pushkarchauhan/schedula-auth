@@ -8,6 +8,7 @@ import { PatientModule } from './patient/patient.module';
 import { User } from './users/user.entity';
 import { DoctorProfile } from './doctor/doctor-profile.entity';
 import { PatientProfile } from './patient/patient-profile.entity';
+import { AppController } from './app.controller'; // 👈 Add this
 
 @Module({
   imports: [
@@ -24,7 +25,7 @@ import { PatientProfile } from './patient/patient-profile.entity';
             type: 'postgres',
             url: databaseUrl,
             entities: [User, DoctorProfile, PatientProfile],
-            synchronize: true,  // auto create tables
+            synchronize: true,
             migrationsRun: false,
             ssl: { rejectUnauthorized: false },
             logging: false,
@@ -51,5 +52,6 @@ import { PatientProfile } from './patient/patient-profile.entity';
     DoctorModule,
     PatientModule,
   ],
+  controllers: [AppController],
 })
 export class AppModule {}
