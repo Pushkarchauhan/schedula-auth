@@ -3,34 +3,57 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
+import { DoctorModule } from './doctor/doctor.module';
+import { PatientModule } from './patient/patient.module';
 import { User } from './users/user.entity';
+import { DoctorProfile } from './doctor/doctor-profile.entity';
+import { PatientProfile } from './patient/patient-profile.entity';
 
 @Module({
   imports: [
-    // Load .env globally
-    ConfigModule.forRoot({
-      isGlobal: true,
-    }),
+    ConfigModule.forRoot({ isGlobal: true }),
 
-    // PostgreSQL via TypeORM
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        type: 'postgres',
-        host: config.get<string>('DB_HOST', 'localhost'),
-        port: config.get<number>('DB_PORT', 5432),
-        username: config.get<string>('DB_USERNAME', 'postgres'),
-        password: config.get<string>('DB_PASSWORD', 'postgres'),
-        database: config.get<string>('DB_NAME', 'schedula'),
-        entities: [User],
-        synchronize: true, // auto-creates tables in dev (disable in prod)
-        logging: false,
-      }),
+      useFactory: (config: ConfigService) => {
+        const databaseUrl = config.get<string>('DATABASE_URL');
+
+        // Use DATABASE_URL for production (Neon/Railway)
+        // Use individual vars for local development
+        if (databaseUrl) {
+          return {
+            type: 'postgres',
+            url: databaseUrl,
+            entities: [User, DoctorProfile, PatientProfile],
+            synchronize: false,
+            migrations: ['dist/database/migrations/*.js'],
+            migrationsRun: true,
+            ssl: { rejectUnauthorized: false },
+            logging: false,
+          };
+        }
+
+        return {
+          type: 'postgres',
+          host: config.get<string>('DB_HOST', 'localhost'),
+          port: config.get<number>('DB_PORT', 5432),
+          username: config.get<string>('DB_USERNAME', 'postgres'),
+          password: config.get<string>('DB_PASSWORD', 'postgres'),
+          database: config.get<string>('DB_NAME', 'schedula'),
+          entities: [User, DoctorProfile, PatientProfile],
+          synchronize: false,
+          migrations: ['dist/database/migrations/*.js'],
+          migrationsRun: true,
+          logging: false,
+        };
+      },
     }),
 
     AuthModule,
     UsersModule,
+    DoctorModule,
+    PatientModule,
   ],
 })
 export class AppModule {}
