@@ -26,6 +26,7 @@ import { User } from './users/user.entity';
         entities: [User],
         synchronize: true, // auto-creates tables in dev (disable in prod)
         logging: false,
+        migrationsRun: false,
       }),
     }),
 
