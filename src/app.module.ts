@@ -5,10 +5,12 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { DoctorModule } from './doctor/doctor.module';
 import { PatientModule } from './patient/patient.module';
+import { AvailabilityModule } from './availability/availability.module';
 import { User } from './users/user.entity';
 import { DoctorProfile } from './doctor/doctor-profile.entity';
 import { PatientProfile } from './patient/patient-profile.entity';
-import { AppController } from './app.controller'; // 👈 Add this
+import { RecurringAvailability } from './availability/recurring-availability.entity';
+import { CustomAvailability } from './availability/custom-availability.entity';
 
 @Module({
   imports: [
@@ -24,7 +26,7 @@ import { AppController } from './app.controller'; // 👈 Add this
           return {
             type: 'postgres',
             url: databaseUrl,
-            entities: [User, DoctorProfile, PatientProfile],
+            entities: [User, DoctorProfile, PatientProfile, RecurringAvailability, CustomAvailability],
             synchronize: true,
             migrationsRun: false,
             ssl: { rejectUnauthorized: false },
@@ -39,7 +41,7 @@ import { AppController } from './app.controller'; // 👈 Add this
           username: config.get<string>('DB_USERNAME', 'postgres'),
           password: config.get<string>('DB_PASSWORD', 'postgres'),
           database: config.get<string>('DB_NAME', 'schedula'),
-          entities: [User, DoctorProfile, PatientProfile],
+          entities: [User, DoctorProfile, PatientProfile, RecurringAvailability, CustomAvailability],
           synchronize: true,
           migrationsRun: false,
           logging: false,
@@ -51,7 +53,7 @@ import { AppController } from './app.controller'; // 👈 Add this
     UsersModule,
     DoctorModule,
     PatientModule,
+    AvailabilityModule,
   ],
-  controllers: [AppController],
 })
 export class AppModule {}
