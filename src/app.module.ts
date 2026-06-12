@@ -6,11 +6,13 @@ import { UsersModule } from './users/users.module';
 import { DoctorModule } from './doctor/doctor.module';
 import { PatientModule } from './patient/patient.module';
 import { AvailabilityModule } from './availability/availability.module';
+import { SlotsModule } from './slots/slots.module';
 import { User } from './users/user.entity';
 import { DoctorProfile } from './doctor/doctor-profile.entity';
 import { PatientProfile } from './patient/patient-profile.entity';
 import { RecurringAvailability } from './availability/recurring-availability.entity';
 import { CustomAvailability } from './availability/custom-availability.entity';
+import { Slot } from './slots/slot.entity';
 
 @Module({
   imports: [
@@ -26,7 +28,7 @@ import { CustomAvailability } from './availability/custom-availability.entity';
           return {
             type: 'postgres',
             url: databaseUrl,
-            entities: [User, DoctorProfile, PatientProfile, RecurringAvailability, CustomAvailability],
+            entities: [User, DoctorProfile, PatientProfile, RecurringAvailability, CustomAvailability, Slot],
             synchronize: true,
             migrationsRun: false,
             ssl: { rejectUnauthorized: false },
@@ -41,7 +43,7 @@ import { CustomAvailability } from './availability/custom-availability.entity';
           username: config.get<string>('DB_USERNAME', 'postgres'),
           password: config.get<string>('DB_PASSWORD', 'postgres'),
           database: config.get<string>('DB_NAME', 'schedula'),
-          entities: [User, DoctorProfile, PatientProfile, RecurringAvailability, CustomAvailability],
+          entities: [User, DoctorProfile, PatientProfile, RecurringAvailability, CustomAvailability, Slot],
           synchronize: true,
           migrationsRun: false,
           logging: false,
@@ -54,6 +56,7 @@ import { CustomAvailability } from './availability/custom-availability.entity';
     DoctorModule,
     PatientModule,
     AvailabilityModule,
+    SlotsModule,
   ],
 })
 export class AppModule {}
