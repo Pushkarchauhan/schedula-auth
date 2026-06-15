@@ -28,9 +28,18 @@ import { Appointment } from './appointment/appointment.entity';
           return {
             type: 'postgres',
             url: databaseUrl,
-            entities: [User, DoctorProfile, PatientProfile, RecurringAvailability, CustomAvailability, Slot, Appointment],
-            synchronize: true,
-            migrationsRun: false,
+            entities: [
+              User,
+              DoctorProfile,
+              PatientProfile,
+              RecurringAvailability,
+              CustomAvailability,
+              Slot,
+              Appointment,
+            ],
+            synchronize: false,        // ✅ disabled — use migrations only
+            migrations: ['dist/database/migrations/*.js'],
+            migrationsRun: true,       // ✅ auto run on startup
             ssl: { rejectUnauthorized: false },
             logging: false,
           };
@@ -42,9 +51,18 @@ import { Appointment } from './appointment/appointment.entity';
           username: config.get<string>('DB_USERNAME', 'postgres'),
           password: config.get<string>('DB_PASSWORD', 'postgres'),
           database: config.get<string>('DB_NAME', 'schedula'),
-          entities: [User, DoctorProfile, PatientProfile, RecurringAvailability, CustomAvailability, Slot, Appointment],
-          synchronize: true,
-          migrationsRun: false,
+          entities: [
+            User,
+            DoctorProfile,
+            PatientProfile,
+            RecurringAvailability,
+            CustomAvailability,
+            Slot,
+            Appointment,
+          ],
+          synchronize: false,          // ✅ disabled — use migrations only
+          migrations: ['dist/database/migrations/*.js'],
+          migrationsRun: true,         // ✅ auto run on startup
           logging: false,
         };
       },

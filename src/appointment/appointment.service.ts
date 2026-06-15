@@ -10,6 +10,7 @@ import { Appointment, AppointmentStatus } from './appointment.entity';
 import { BookAppointmentDto } from './dto/book-appointment.dto';
 import { Slot, SlotStatus } from '../slots/slot.entity';
 import { User, Role } from '../users/user.entity';
+import { APPOINTMENT_MESSAGES, DOCTOR_MESSAGES } from '../common/constants/messages.constants';
 
 @Injectable()
 export class AppointmentService {
@@ -25,25 +26,20 @@ export class AppointmentService {
   ) {}
 
   // ─── Book Appointment ─────────────────────────────────────
-  // POST /appointment
   async bookAppointment(patientId: string, dto: BookAppointmentDto): Promise<Appointment> {
     const { doctorId, date, startTime, endTime } = dto;
 
-    // Validate date not in past
+    // Validate future date
     const today = new Date().toISOString().split('T')[0];
     if (date < today) {
-      throw new BadRequestException(
-        `Cannot book appointment for past date: ${date}.`,
-      );
+      throw new BadRequestException(APPOINTMENT_MESSAGES.PAST_DATE(date));
     }
 
-    // Check if today and time not in past
+    // Validate future time if today
     const now = new Date();
     const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
     if (date === today && startTime <= currentTime) {
-      throw new BadRequestException(
-        `Cannot book appointment for past time: ${startTime}.`,
-      );
+      throw new BadRequestException(APPOINTMENT_MESSAGES.PAST_TIME(startTime));
     }
 
     // Check doctor exists
@@ -51,7 +47,7 @@ export class AppointmentService {
       where: { id: doctorId, role: Role.DOCTOR },
     });
     if (!doctor) {
-      throw new NotFoundException(`Doctor with ID ${doctorId} not found.`);
+      throw new NotFoundException(DOCTOR_MESSAGES.DOCTOR_NOT_FOUND(doctorId));
     }
 
     // Check slot exists
@@ -59,34 +55,23 @@ export class AppointmentService {
       where: { doctorId, date, startTime, endTime },
     });
     if (!slot) {
-      throw new NotFoundException(
-        `Slot not found for ${date} at ${startTime}-${endTime}.`,
-      );
+      throw new NotFoundException(APPOINTMENT_MESSAGES.SLOT_NOT_FOUND(date, startTime, endTime));
     }
 
-    // Check slot is available
+    // Check slot available
     if (slot.status !== SlotStatus.AVAILABLE) {
-      throw new BadRequestException(
-        `Slot at ${startTime}-${endTime} on ${date} is already booked.`,
-      );
+      throw new BadRequestException(APPOINTMENT_MESSAGES.SLOT_ALREADY_BOOKED(startTime, endTime, date));
     }
 
-    // Check patient doesn't already have appointment at same time
+    // Check duplicate booking
     const existing = await this.appointmentRepo.findOne({
-      where: {
-        patientId,
-        date,
-        startTime,
-        status: AppointmentStatus.BOOKED,
-      },
+      where: { patientId, date, startTime, status: AppointmentStatus.BOOKED },
     });
     if (existing) {
-      throw new BadRequestException(
-        `You already have an appointment at ${startTime} on ${date}.`,
-      );
+      throw new BadRequestException(APPOINTMENT_MESSAGES.DUPLICATE(startTime, date));
     }
 
-    // Create appointment
+    // Create appointment and mark slot booked
     const appointment = this.appointmentRepo.create({
       patientId,
       doctorId,
@@ -97,7 +82,6 @@ export class AppointmentService {
       status: AppointmentStatus.BOOKED,
     });
 
-    // Mark slot as booked
     slot.status = SlotStatus.BOOKED;
     await this.slotRepo.save(slot);
 
@@ -105,23 +89,20 @@ export class AppointmentService {
   }
 
   // ─── Patient View Appointments ────────────────────────────
-  // GET /appointment/my
-  async getPatientAppointments(patientId: string): Promise<any[]> {
+  async getPatientAppointments(patientId: string): Promise<any> {
     const appointments = await this.appointmentRepo.find({
       where: { patientId },
       order: { date: 'ASC', startTime: 'ASC' },
     });
 
+    // ✅ Return empty array instead of 404
     if (appointments.length === 0) {
-      throw new NotFoundException('No appointments found.');
+      return { message: APPOINTMENT_MESSAGES.NO_APPOINTMENTS, data: [] };
     }
 
-    // Get doctor details for each appointment
-    const result = await Promise.all(
+    const data = await Promise.all(
       appointments.map(async (apt) => {
-        const doctor = await this.userRepo.findOne({
-          where: { id: apt.doctorId },
-        });
+        const doctor = await this.userRepo.findOne({ where: { id: apt.doctorId } });
         return {
           id: apt.id,
           date: apt.date,
@@ -138,46 +119,35 @@ export class AppointmentService {
       }),
     );
 
-    return result;
+    return { data };
   }
 
   // ─── Cancel Appointment ───────────────────────────────────
-  // PATCH /appointment/:id/cancel
   async cancelAppointment(patientId: string, id: string): Promise<Appointment> {
     const appointment = await this.appointmentRepo.findOne({ where: { id } });
 
     if (!appointment) {
-      throw new NotFoundException(`Appointment with ID ${id} not found.`);
+      throw new NotFoundException(APPOINTMENT_MESSAGES.NOT_FOUND(id));
     }
 
-    // Check patient owns this appointment
     if (appointment.patientId !== patientId) {
-      throw new ForbiddenException(
-        'You can only cancel your own appointments.',
-      );
+      throw new ForbiddenException(APPOINTMENT_MESSAGES.UNAUTHORIZED);
     }
 
-    // Check not already cancelled
     if (appointment.status === AppointmentStatus.CANCELLED) {
-      throw new BadRequestException('Appointment is already cancelled.');
+      throw new BadRequestException(APPOINTMENT_MESSAGES.ALREADY_CANCELLED);
     }
 
-    // Check not past appointment
     const today = new Date().toISOString().split('T')[0];
     if (appointment.date < today) {
-      throw new BadRequestException(
-        'Cannot cancel a past appointment.',
-      );
+      throw new BadRequestException(APPOINTMENT_MESSAGES.CANNOT_CANCEL_PAST);
     }
 
-    // Cancel appointment
     appointment.status = AppointmentStatus.CANCELLED;
     await this.appointmentRepo.save(appointment);
 
-    // Free up the slot
-    const slot = await this.slotRepo.findOne({
-      where: { id: appointment.slotId },
-    });
+    // Free up slot
+    const slot = await this.slotRepo.findOne({ where: { id: appointment.slotId } });
     if (slot) {
       slot.status = SlotStatus.AVAILABLE;
       await this.slotRepo.save(slot);
@@ -187,23 +157,20 @@ export class AppointmentService {
   }
 
   // ─── Doctor View Appointments ─────────────────────────────
-  // GET /doctor/appointments
-  async getDoctorAppointments(doctorId: string): Promise<any[]> {
+  async getDoctorAppointments(doctorId: string): Promise<any> {
     const appointments = await this.appointmentRepo.find({
       where: { doctorId },
       order: { date: 'ASC', startTime: 'ASC' },
     });
 
+    // ✅ Return empty array instead of 404
     if (appointments.length === 0) {
-      throw new NotFoundException('No appointments found.');
+      return { message: APPOINTMENT_MESSAGES.NO_APPOINTMENTS, data: [] };
     }
 
-    // Get patient details for each appointment
-    const result = await Promise.all(
+    const data = await Promise.all(
       appointments.map(async (apt) => {
-        const patient = await this.userRepo.findOne({
-          where: { id: apt.patientId },
-        });
+        const patient = await this.userRepo.findOne({ where: { id: apt.patientId } });
         return {
           id: apt.id,
           date: apt.date,
@@ -220,6 +187,6 @@ export class AppointmentService {
       }),
     );
 
-    return result;
+    return { data };
   }
 }
