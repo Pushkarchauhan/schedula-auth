@@ -7,12 +7,40 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, ILike } from 'typeorm';
 import { DoctorProfile } from './doctor-profile.entity';
+import { SchedulingType } from './doctor-profile.entity';
 import { CreateDoctorProfileDto } from './dto/create-doctor-profile.dto';
 import { UpdateDoctorProfileDto } from './dto/update-doctor-profile.dto';
 import { DoctorQueryDto } from './dto/doctor-query.dto';
+import { SetSchedulingTypeDto } from './dto/set-scheduling-type.dto';
 
 @Injectable()
 export class DoctorService {
+  private validateSchedulingConfig(dto: CreateDoctorProfileDto | UpdateDoctorProfileDto) {
+    if (
+      dto.slotDuration !== undefined &&
+      !Number.isInteger(dto.slotDuration)
+    ) {
+      throw new BadRequestException('slotDuration must be an integer.');
+    }
+
+    if (dto.slotDuration !== undefined && dto.slotDuration <= 0) {
+      throw new BadRequestException('slotDuration must be greater than 0.');
+    }
+
+    if (dto.bufferTime !== undefined && dto.bufferTime < 0) {
+      throw new BadRequestException('bufferTime cannot be negative.');
+    }
+
+    if (
+      dto.schedulingType === SchedulingType.WAVE &&
+      (!dto.maxPatientsPerWave || dto.maxPatientsPerWave < 1)
+    ) {
+      throw new BadRequestException(
+        'maxPatientsPerWave is required and must be at least 1 for WAVE scheduling.',
+      );
+    }
+  }
+
   constructor(
     @InjectRepository(DoctorProfile)
     private readonly doctorProfileRepo: Repository<DoctorProfile>,
@@ -21,6 +49,7 @@ export class DoctorService {
   // ─── Onboarding (Day 3) ──────────────────────────────────
 
   async createProfile(userId: string, dto: CreateDoctorProfileDto): Promise<DoctorProfile> {
+    this.validateSchedulingConfig(dto);
     const existing = await this.doctorProfileRepo.findOne({ where: { userId } });
     if (existing) {
       throw new ConflictException(
@@ -48,7 +77,37 @@ export class DoctorService {
         'Doctor profile not found. Please create it first via POST /doctor/profile.',
       );
     }
+    const merged = {
+      schedulingType: dto.schedulingType ?? profile.schedulingType,
+      slotDuration: dto.slotDuration ?? profile.slotDuration,
+      bufferTime: dto.bufferTime ?? profile.bufferTime,
+      maxPatientsPerWave: dto.maxPatientsPerWave ?? profile.maxPatientsPerWave,
+    };
+    this.validateSchedulingConfig(merged as any);
     Object.assign(profile, dto);
+    return this.doctorProfileRepo.save(profile);
+  }
+
+  async setSchedulingType(userId: string, dto: SetSchedulingTypeDto): Promise<DoctorProfile> {
+    const profile = await this.doctorProfileRepo.findOne({ where: { userId } });
+    if (!profile) {
+      throw new NotFoundException(
+        'Doctor profile not found. Please create it first via POST /doctor/profile.',
+      );
+    }
+
+    const merged = {
+      schedulingType: dto.schedulingType,
+      slotDuration: dto.slotDuration ?? profile.slotDuration,
+      bufferTime: dto.bufferTime ?? profile.bufferTime,
+      maxPatientsPerWave: dto.maxPatientsPerWave ?? profile.maxPatientsPerWave,
+    };
+    this.validateSchedulingConfig(merged as any);
+
+    profile.schedulingType = merged.schedulingType;
+    profile.slotDuration = merged.slotDuration;
+    profile.bufferTime = merged.bufferTime;
+    profile.maxPatientsPerWave = merged.maxPatientsPerWave ?? null;
     return this.doctorProfileRepo.save(profile);
   }
 

@@ -15,6 +15,7 @@ import { RecurringAvailability } from './availability/recurring-availability.ent
 import { CustomAvailability } from './availability/custom-availability.entity';
 import { Slot } from './slots/slot.entity';
 import { Appointment } from './appointment/appointment.entity';
+import { WaveSchedule } from './slots/wave-schedule.entity';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { Appointment } from './appointment/appointment.entity';
               CustomAvailability,
               Slot,
               Appointment,
+              WaveSchedule,
             ],
             synchronize: false,        // ✅ disabled — use migrations only
             migrations: ['dist/database/migrations/*.js'],
@@ -59,6 +61,7 @@ import { Appointment } from './appointment/appointment.entity';
             CustomAvailability,
             Slot,
             Appointment,
+            WaveSchedule,
           ],
           synchronize: false,          // ✅ disabled — use migrations only
           migrations: ['dist/database/migrations/*.js'],

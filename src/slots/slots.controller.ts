@@ -14,6 +14,7 @@ import { Roles } from '../auth/roles.decorator';
 import { Role } from '../users/user.entity';
 import { SlotsService } from './slots.service';
 import { GenerateSlotsDto } from './dto/generate-slots.dto';
+import { CreateWaveDto } from './dto/create-wave.dto';
 
 // ─── Doctor Routes ────────────────────────────────────────────
 @Controller('doctor/slots')
@@ -43,6 +44,36 @@ export class DoctorSlotsController {
       data: slots,
     };
   }
+
+}
+
+@Controller('doctor/waves')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(Role.DOCTOR)
+export class DoctorWavesController {
+  constructor(private readonly slotsService: SlotsService) {}
+
+  // POST /doctor/waves
+  @Post()
+  async createWave(@Request() req, @Body() dto: CreateWaveDto) {
+    const wave = await this.slotsService.createWave(req.user.id, dto);
+    return {
+      success: true,
+      message: 'Wave schedule created successfully.',
+      data: wave,
+    };
+  }
+
+  // GET /doctor/waves?date=YYYY-MM-DD
+  @Get()
+  async getDoctorWaves(@Request() req, @Query('date') date: string) {
+    const waves = await this.slotsService.getDoctorWaves(req.user.id, date);
+    return {
+      success: true,
+      count: waves.length,
+      data: waves,
+    };
+  }
 }
 
 // ─── Patient Routes (Public) ──────────────────────────────────
@@ -62,6 +93,16 @@ export class PatientSlotsController {
       date,
       duration,
     );
+    return { success: true, data: result };
+  }
+
+  // GET /doctor/:doctorId/waves?date=YYYY-MM-DD
+  @Get(':doctorId/waves')
+  async getAvailableWaves(
+    @Param('doctorId') doctorId: string,
+    @Query('date') date: string,
+  ) {
+    const result = await this.slotsService.getAvailableWaves(doctorId, date);
     return { success: true, data: result };
   }
 }

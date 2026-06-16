@@ -9,8 +9,10 @@ import { Repository } from 'typeorm';
 import { Appointment, AppointmentStatus } from './appointment.entity';
 import { BookAppointmentDto } from './dto/book-appointment.dto';
 import { Slot, SlotStatus } from '../slots/slot.entity';
+import { SlotType } from '../slots/slot.entity';
 import { User, Role } from '../users/user.entity';
 import { APPOINTMENT_MESSAGES, DOCTOR_MESSAGES } from '../common/constants/messages.constants';
+import { WaveSchedule } from '../slots/wave-schedule.entity';
 
 @Injectable()
 export class AppointmentService {
@@ -23,11 +25,14 @@ export class AppointmentService {
 
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
+
+    @InjectRepository(WaveSchedule)
+    private readonly waveRepo: Repository<WaveSchedule>,
   ) {}
 
   // ─── Book Appointment ─────────────────────────────────────
   async bookAppointment(patientId: string, dto: BookAppointmentDto): Promise<Appointment> {
-    const { doctorId, date, startTime, endTime } = dto;
+    const { doctorId, date, startTime, endTime, slotId } = dto;
 
     // Validate future date
     const today = new Date().toISOString().split('T')[0];
@@ -35,10 +40,10 @@ export class AppointmentService {
       throw new BadRequestException(APPOINTMENT_MESSAGES.PAST_DATE(date));
     }
 
-    // Validate future time if today
+    // Validate future time if today for stream booking
     const now = new Date();
     const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-    if (date === today && startTime <= currentTime) {
+    if (date === today && startTime && startTime <= currentTime) {
       throw new BadRequestException(APPOINTMENT_MESSAGES.PAST_TIME(startTime));
     }
 
@@ -51,24 +56,64 @@ export class AppointmentService {
     }
 
     // Check slot exists
-    const slot = await this.slotRepo.findOne({
-      where: { doctorId, date, startTime, endTime },
-    });
+    const slot = slotId
+      ? await this.slotRepo.findOne({
+          where: { id: slotId, doctorId, date },
+        })
+      : await this.slotRepo.findOne({
+          where: { doctorId, date, startTime, endTime },
+        });
     if (!slot) {
-      throw new NotFoundException(APPOINTMENT_MESSAGES.SLOT_NOT_FOUND(date, startTime, endTime));
+      throw new NotFoundException(
+        APPOINTMENT_MESSAGES.SLOT_NOT_FOUND(date, startTime ?? 'NA', endTime ?? 'NA'),
+      );
     }
 
-    // Check slot available
-    if (slot.status !== SlotStatus.AVAILABLE) {
-      throw new BadRequestException(APPOINTMENT_MESSAGES.SLOT_ALREADY_BOOKED(startTime, endTime, date));
-    }
+    let tokenNumber: number | null = null;
 
-    // Check duplicate booking
-    const existing = await this.appointmentRepo.findOne({
-      where: { patientId, date, startTime, status: AppointmentStatus.BOOKED },
-    });
-    if (existing) {
-      throw new BadRequestException(APPOINTMENT_MESSAGES.DUPLICATE(startTime, date));
+    if (slot.slotType === SlotType.WAVE) {
+      // Check duplicate booking in the same wave
+      const duplicateWaveBooking = await this.appointmentRepo.findOne({
+        where: { patientId, slotId: slot.id, status: AppointmentStatus.BOOKED },
+      });
+      if (duplicateWaveBooking) {
+        throw new BadRequestException('Duplicate booking not allowed for the same wave.');
+      }
+
+      if (slot.bookedCount >= slot.capacity) {
+        slot.status = SlotStatus.BOOKED;
+        await this.slotRepo.save(slot);
+        throw new BadRequestException('Wave is full.');
+      }
+
+      tokenNumber = slot.bookedCount + 1;
+      slot.bookedCount += 1;
+      if (slot.bookedCount >= slot.capacity) {
+        slot.status = SlotStatus.BOOKED;
+      }
+    } else {
+      // Check slot available
+      if (slot.status !== SlotStatus.AVAILABLE) {
+        throw new BadRequestException(
+          APPOINTMENT_MESSAGES.SLOT_ALREADY_BOOKED(slot.startTime, slot.endTime, date),
+        );
+      }
+
+      // Check duplicate booking
+      const existing = await this.appointmentRepo.findOne({
+        where: {
+          patientId,
+          date,
+          startTime: slot.startTime,
+          status: AppointmentStatus.BOOKED,
+        },
+      });
+      if (existing) {
+        throw new BadRequestException(APPOINTMENT_MESSAGES.DUPLICATE(slot.startTime, date));
+      }
+
+      slot.bookedCount = 1;
+      slot.status = SlotStatus.BOOKED;
     }
 
     // Create appointment and mark slot booked
@@ -77,13 +122,21 @@ export class AppointmentService {
       doctorId,
       slotId: slot.id,
       date,
-      startTime,
-      endTime,
+      startTime: slot.startTime,
+      endTime: slot.endTime,
+      tokenNumber,
       status: AppointmentStatus.BOOKED,
     });
 
-    slot.status = SlotStatus.BOOKED;
     await this.slotRepo.save(slot);
+
+    if (slot.slotType === SlotType.WAVE) {
+      const wave = await this.waveRepo.findOne({ where: { slotId: slot.id } });
+      if (wave) {
+        wave.bookedCount = slot.bookedCount;
+        await this.waveRepo.save(wave);
+      }
+    }
 
     return this.appointmentRepo.save(appointment);
   }
@@ -108,6 +161,7 @@ export class AppointmentService {
           date: apt.date,
           startTime: apt.startTime,
           endTime: apt.endTime,
+          tokenNumber: apt.tokenNumber,
           status: apt.status,
           doctor: {
             id: doctor?.id,
@@ -149,8 +203,22 @@ export class AppointmentService {
     // Free up slot
     const slot = await this.slotRepo.findOne({ where: { id: appointment.slotId } });
     if (slot) {
-      slot.status = SlotStatus.AVAILABLE;
+      if (slot.slotType === SlotType.WAVE) {
+        slot.bookedCount = Math.max(0, slot.bookedCount - 1);
+        slot.status = SlotStatus.AVAILABLE;
+      } else {
+        slot.bookedCount = 0;
+        slot.status = SlotStatus.AVAILABLE;
+      }
       await this.slotRepo.save(slot);
+
+      if (slot.slotType === SlotType.WAVE) {
+        const wave = await this.waveRepo.findOne({ where: { slotId: slot.id } });
+        if (wave) {
+          wave.bookedCount = slot.bookedCount;
+          await this.waveRepo.save(wave);
+        }
+      }
     }
 
     return appointment;
@@ -176,6 +244,7 @@ export class AppointmentService {
           date: apt.date,
           startTime: apt.startTime,
           endTime: apt.endTime,
+          tokenNumber: apt.tokenNumber,
           status: apt.status,
           patient: {
             id: patient?.id,
