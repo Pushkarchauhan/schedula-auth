@@ -19,23 +19,23 @@ import { PatientProfile } from './patient/patient-profile.entity';
       useFactory: (config: ConfigService) => {
         const databaseUrl = config.get<string>('DATABASE_URL');
 
-        // Use DATABASE_URL for production (Neon/Railway)
-        // Use individual vars for local development
         if (databaseUrl) {
           return {
-            type: 'postgres',
+            type: 'postgres' as const,
             url: databaseUrl,
             entities: [User, DoctorProfile, PatientProfile],
             synchronize: false,
             migrations: ['dist/database/migrations/*.js'],
             migrationsRun: true,
-            ssl: { rejectUnauthorized: false },
+            ssl: {
+              rejectUnauthorized: false,
+            },
             logging: false,
           };
         }
 
         return {
-          type: 'postgres',
+          type: 'postgres' as const,
           host: config.get<string>('DB_HOST', 'localhost'),
           port: config.get<number>('DB_PORT', 5432),
           username: config.get<string>('DB_USERNAME', 'postgres'),
