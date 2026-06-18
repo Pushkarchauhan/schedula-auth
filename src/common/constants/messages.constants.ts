@@ -89,5 +89,15 @@ export const APPOINTMENT_MESSAGES = {
   ALREADY_CANCELLED: 'Appointment is already cancelled.',
   CANNOT_CANCEL_PAST: 'Cannot cancel a past appointment.',
   UNAUTHORIZED: 'You can only cancel your own appointments.',
+  UNAUTHORIZED_RESCHEDULE: 'You can only reschedule your own appointments.',
   NO_APPOINTMENTS: 'No appointments found.',
+  RESCHEDULED: 'Appointment rescheduled successfully.',
+  CUTOFF_RESCHEDULE_CANCEL:
+    'Cannot reschedule or cancel within 30 minutes of appointment start time.',
+  SAME_SLOT: 'New appointment must be different from the current appointment.',
+  PAST_APPOINTMENT: 'Cannot reschedule a past appointment.',
+  WAVE_FULL: 'Wave is full.',
+  INVALID_SCHEDULING_TYPE: 'Invalid scheduling type for this slot.',
+  SLOT_UNAVAILABLE: 'Requested slot unavailable',
+  WAVE_UNAVAILABLE: 'Requested wave unavailable',
 };
