@@ -15,6 +15,11 @@ export enum SlotStatus {
   CANCELLED = 'CANCELLED',
 }
 
+export enum SlotType {
+  STREAM = 'STREAM',
+  WAVE = 'WAVE',
+}
+
 @Entity('slots')
 export class Slot {
   @PrimaryGeneratedColumn('uuid')
@@ -28,16 +33,29 @@ export class Slot {
   doctorId: string;
 
   @Column({ type: 'date' })
-  date: string; // e.g. "2026-06-20"
+  date: string;
 
   @Column({ type: 'time' })
-  startTime: string; // e.g. "10:00"
+  startTime: string;
 
   @Column({ type: 'time' })
-  endTime: string; // e.g. "10:30"
+  endTime: string;
 
   @Column({ type: 'int' })
-  duration: number; // in minutes
+  duration: number;
+
+  @Column({
+    type: 'enum',
+    enum: SlotType,
+    default: SlotType.STREAM,
+  })
+  slotType: SlotType;
+
+  @Column({ type: 'int', default: 1 })
+  capacity: number;
+
+  @Column({ type: 'int', default: 0 })
+  bookedCount: number;
 
   @Column({
     type: 'enum',

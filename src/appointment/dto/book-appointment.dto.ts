@@ -1,8 +1,10 @@
 import {
+  IsOptional,
   IsNotEmpty,
   IsString,
   IsUUID,
   Matches,
+  ValidateIf,
 } from 'class-validator';
 
 export class BookAppointmentDto {
@@ -17,17 +19,23 @@ export class BookAppointmentDto {
   })
   date: string;
 
+  @IsOptional()
+  @IsUUID()
+  slotId?: string;
+
+  @ValidateIf((o) => !o.slotId)
   @IsNotEmpty()
   @IsString()
   @Matches(/^([01]\d|2[0-3]):([0-5]\d)$/, {
     message: 'startTime must be in HH:MM format',
   })
-  startTime: string;
+  startTime?: string;
 
+  @ValidateIf((o) => !o.slotId)
   @IsNotEmpty()
   @IsString()
   @Matches(/^([01]\d|2[0-3]):([0-5]\d)$/, {
     message: 'endTime must be in HH:MM format',
   })
-  endTime: string;
+  endTime?: string;
 }

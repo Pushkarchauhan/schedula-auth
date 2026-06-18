@@ -1,12 +1,15 @@
 import {
+  IsEnum,
   IsInt,
   IsNotEmpty,
   IsNumber,
   IsOptional,
   IsString,
   Min,
+  ValidateIf,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { SchedulingType } from '../doctor-profile.entity';
 
 export class CreateDoctorProfileDto {
   @IsNotEmpty()
@@ -40,4 +43,26 @@ export class CreateDoctorProfileDto {
   @IsOptional()
   @IsString()
   profileDetails?: string;
+
+  @IsOptional()
+  @IsEnum(SchedulingType)
+  schedulingType?: SchedulingType;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(5)
+  slotDuration?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  bufferTime?: number;
+
+  @ValidateIf((o) => o.schedulingType === SchedulingType.WAVE)
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  maxPatientsPerWave?: number;
 }
