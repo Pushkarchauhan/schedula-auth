@@ -50,6 +50,9 @@ export class Appointment {
   @Column({ type: 'time' })
   endTime: string;
 
+  @Column({ type: 'int', nullable: true })
+  tokenNumber: number | null;
+
   @Column({
     type: 'enum',
     enum: AppointmentStatus,

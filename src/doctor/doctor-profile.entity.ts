@@ -9,6 +9,11 @@ import {
 } from 'typeorm';
 import { User } from '../users/user.entity';
 
+export enum SchedulingType {
+  STREAM = 'STREAM',
+  WAVE = 'WAVE',
+}
+
 @Entity('doctor_profiles')
 export class DoctorProfile {
   @PrimaryGeneratedColumn('uuid')
@@ -43,7 +48,23 @@ export class DoctorProfile {
   profileDetails: string;
 
   @Column({ type: 'boolean', default: true })
-  isAvailable: boolean; // Day 4 — availability filter
+  isAvailable: boolean;
+
+  @Column({
+    type: 'enum',
+    enum: SchedulingType,
+    default: SchedulingType.STREAM,
+  })
+  schedulingType: SchedulingType;
+
+  @Column({ type: 'int', default: 15 })
+  slotDuration: number;
+
+  @Column({ type: 'int', default: 0 })
+  bufferTime: number;
+
+  @Column({ type: 'int', nullable: true })
+  maxPatientsPerWave: number | null;
 
   @CreateDateColumn()
   createdAt: Date;

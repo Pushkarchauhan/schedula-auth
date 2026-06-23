@@ -1,12 +1,14 @@
 import {
-  IsNotEmpty,
-  IsString,
+  IsEnum,
   IsInt,
-  IsIn,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
   Matches,
   Min,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { SchedulingType } from '../../doctor/doctor-profile.entity';
 
 export class GenerateSlotsDto {
   @IsNotEmpty()
@@ -16,11 +18,25 @@ export class GenerateSlotsDto {
   })
   date: string;
 
-  @IsNotEmpty()
+  @IsOptional()
   @Type(() => Number)
   @IsInt()
-  @IsIn([10, 15, 30, 45, 60], {
-    message: 'duration must be 10, 15, 30, 45 or 60 minutes',
-  })
-  duration: number;
+  @Min(5)
+  duration?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  bufferTime?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  maxPatientsPerWave?: number;
+
+  @IsOptional()
+  @IsEnum(SchedulingType)
+  schedulingType?: SchedulingType;
 }
